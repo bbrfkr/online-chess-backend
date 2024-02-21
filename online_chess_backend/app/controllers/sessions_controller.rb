@@ -3,28 +3,20 @@ class SessionsController < ApplicationController
   skip_before_action :_verify_token, only: [:new]
 
   def new
-    # loginし、jwt tokenを発行する
+    # ログイン
     user = User.find_by(email: params['email'])
     unless user && user.authenticate(params[:password])
       render json: { error: 'Invalid user information' }, status: :bad_request
       return
     end
 
-    # jwt tokenの生成
-    jti = SecureRandom.uuid 
-    exp = (Time.now + 1.hour).to_i
-    payload = {exp:, jti:, user_id: user.id}
-    token = JWT.encode(payload, Rails.application.credentials.secret_key_base)
-
-    # jtiの更新
-    user.jti = jti
-    user.save
-
+    token = user.generate_token
     render json: {token: token}
   end
 
   def destroy
-    current_user.update(jti: nil)
+    # ログアウト
+    current_user.remove_jti
     render json: {message: 'logout successfully.'}
   end
 end
